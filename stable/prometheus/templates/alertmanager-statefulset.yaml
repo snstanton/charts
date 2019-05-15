@@ -50,6 +50,12 @@ spec:
             - --config.file=/etc/config/alertmanager.yml
             - --storage.path={{ .Values.alertmanager.persistentVolume.mountPath }}
             - --cluster.advertise-address=$(POD_IP):6783
+          {{- if .Values.alertmanager.statefulSet.headless.enableMeshPeer }}
+            - --cluster.listen-address=0.0.0.0:6783
+          {{- range $n := until (.Values.alertmanager.replicaCount | int) }}
+            - --cluster.peer={{ template "prometheus.alertmanager.fullname" $ }}-{{ $n }}.{{ template "prometheus.alertmanager.fullname" $ }}-headless:6783
+          {{- end }}
+          {{- end }}
           {{- range $key, $value := .Values.alertmanager.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
@@ -100,10 +106,6 @@ spec:
     {{- if .Values.alertmanager.tolerations }}
       tolerations:
 {{ toYaml .Values.alertmanager.tolerations | indent 8 }}
-    {{- end }}
-    {{- if .Values.alertmanager.affinity }}
-      affinity:
-{{ toYaml .Values.alertmanager.affinity | indent 8 }}
     {{- end }}
       volumes:
         - name: config-volume

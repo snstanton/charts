@@ -41,13 +41,14 @@ $ helm install stable/chaoskube --set dryRun=false
 |---------------------------|-----------------------------------------------------|----------------------------------|
 | `name`                    | container name                                      | chaoskube                        |
 | `image`                   | docker image                                        | quay.io/linki/chaoskube          |
-| `imageTag`                | docker image tag                                    | v0.10.0                          |
+| `imageTag`                | docker image tag                                    | v0.11.0                          |
 | `replicas`                | number of replicas to run                           | 1                                |
 | `interval`                | interval between pod terminations                   | 10m                              |
 | `labels`                  | label selector to filter pods by                    | "" (matches everything)          |
 | `annotations`             | annotation selector to filter pods by               | "" (matches everything)          |
 | `namespaces`              | namespace selector to filter pods by                | "" (all namespaces)              |
 | `dryRun`                  | don't kill pods, only log what would have been done | true                             |
+| `logFormat`               | Options to choose log format(i.e. "text" or "json") | "text"                           |
 | `debug`                   | Enable debug logging mode, for detailed logs        | false                            |
 | `timezone`                | Set timezone for running actions (Optional)         | "" (UTC)                         |
 | `excludedWeekdays`        | Set Days of the Week to avoid actions (Optional)    | "" (Don't skip any weekdays)     |
@@ -61,7 +62,9 @@ $ helm install stable/chaoskube --set dryRun=false
 | `tolerations`             | Toleration labels for pod assignment                | `[]`                             |
 | `affinity`                | Affinity settings for pod assignment                | `{}`                             |
 | `minimumAge`              | Set minimum pod age to filter pod by                | `0s`                             |
-| `podAnnotations`	    | Annotations for the chaoskube pod			  | `{}`			     |
+| `podAnnotations`          | Annotations for the chaoskube pod                   | `{}`                             |
+| `gracePeriod`             | grace period to give pods when terminating them     | `-1s` (pod decides)              |
+| `metricsAddress`          | Listening address for metrics handler               | `:8080`                          |
 
 Setting label and namespaces selectors from the shell can be tricky but is possible (example with zsh):
 

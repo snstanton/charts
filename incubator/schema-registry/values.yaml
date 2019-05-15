@@ -18,6 +18,8 @@ replicaCount: 1
 ## Schema Registry Settings Overrides
 ## Configuration Options can be found here: https://docs.confluent.io/current/schema-registry/docs/config.html
 configurationOverrides: {}
+  ## The default master.eligiblity is true
+  # master.eligibility: false
 
 ## Configure resource requests and limits
 ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -128,9 +130,18 @@ jmx:
   enabled: true
   port: 5555
 
-## Useful if using any Keystore/Trusttore for Authorization.
-## Pass any secrets to the pods. The secret will be mounted to a
-## specific path (in addition to environment variable) if required.
+## Pass any secrets to the pods. The secrets will be mounted to a specfic path
+## OR presented as Environment Variables. Environment variable names are
+## generated as: `<secretName>_<secretKey>` (All upper case)
+## note: Keystore/Truststore are binary and should always be presented as files.
 secrets: []
-# - name: myZkSecret
-# mountPath: /opt/zookeeper/secret
+# - name: schema-registry-jks
+#   keys:
+#     - ksr-server.truststore.jks
+#     - ksr-server.keystore.jks
+#   mountPath: /secrets
+# - name: schema-registry-jks-pw
+#   keys:
+#     - ssl_truststore_password
+#     - ssl_keystore_password
+#     - ssl_key_password
