@@ -18,8 +18,10 @@ Bitnami charts can be used with [Kubeapps](https://kubeapps.com/) for deployment
 
 ## Prerequisites
 
-- Kubernetes 1.4+ with Beta APIs enabled
+- Kubernetes 1.12+
+- Helm 2.11+ or Helm 3.0-beta3+
 - PV provisioner support in the underlying infrastructure
+- ReadWriteMany volumes for deployment scaling
 
 ## Installing the Chart
 
@@ -29,7 +31,7 @@ To install the chart with the release name `my-release`:
 $ helm install --name my-release stable/moodle
 ```
 
-The command deploys Moodle on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+The command deploys Moodle on the Kubernetes cluster in the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
 
 > **Tip**: List all releases using `helm list`
 
@@ -43,7 +45,7 @@ $ helm delete my-release
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-## Configuration
+## Parameters
 
 The following table lists the configurable parameters of the Moodle chart and their default values.
 
@@ -51,11 +53,14 @@ The following table lists the configurable parameters of the Moodle chart and th
 |---------------------------------------|----------------------------------------------------------------------------------------------|-------------------------------------------------------- |
 | `global.imageRegistry`                | Global Docker image registry                                                                 | `nil`                                         |
 | `global.imagePullSecrets`             | Global Docker registry secret names as an array                                              | `[]` (does not add image pull secrets to deployed pods) |
+| `global.storageClass`                     | Global storage class for dynamic provisioning                                               | `nil`                                                        |
 | `image.registry`                      | Moodle image registry                                                                        | `docker.io`                                   |
 | `image.repository`                    | Moodle Image name                                                                            | `bitnami/moodle`                              |
-| `image.tag`                           | Moodle Image tag                                                                             | `{VERSION}`                                   |
-| `image.pullPolicy`                    | Image pull policy                                                                            | `Always` if `imageTag` is `latest`, else `IfNotPresent`|
+| `image.tag`                           | Moodle Image tag                                                                             | `{TAG_NAME}`                                  |
+| `image.pullPolicy`                    | Image pull policy                                                                            | `IfNotPresent`                                |
 | `image.pullSecrets`                   | Specify docker-registry secret names as an array                                             | `[]` (does not add image pull secrets to deployed pods) |
+| `nameOverride`                        | String to partially override moodle.fullname template with a string (will prepend the release name) | `nil`                                   |
+| `fullnameOverride`                    | String to fully override moodle.fullname template with a string                              | `nil`                                          |
 | `moodleUsername`                      | User of the application                                                                      | `user`                                         |
 | `moodlePassword`                      | Application password                                                                         | _random 10 character alphanumeric string_      |
 | `moodleEmail`                         | Admin email                                                                                  | `user@example.com`                             |
@@ -105,11 +110,13 @@ The following table lists the configurable parameters of the Moodle chart and th
 | `mariadb.persistence.existingClaim`   | If PVC exists&bounded for MariaDB                                                            | `nil` (when nil, new one is requested)         |
 | `mariadb.affinity`                    | Set affinity for the MariaDB pods                                                            | `nil`                                          |
 | `mariadb.resources`                   | CPU/Memory resource requests/limits                                                          | Memory: `256Mi`, CPU: `250m`                   |
+| `livenessProbe.enabled`               | Turn on and off liveness probe                                                               | `true`                                         |
 | `livenessProbe.initialDelaySeconds`   | Delay before liveness probe is initiated                                                     | 600                                            |
 | `livenessProbe.periodSeconds`         | How often to perform the probe                                                               | 3                                              |
 | `livenessProbe.timeoutSeconds`        | When the probe times out                                                                     | 5                                              |
 | `livenessProbe.failureThreshold`      | Minimum consecutive failures for the probe to be considered failed after having succeeded.   | 6                                              |
 | `livenessProbe.successThreshold`      | Minimum consecutive successes for the probe to be considered successful after having failed. | 1                                              |
+| `readinessProbe.enabled`              | Turn on and off readiness probe                                                              | `true`                                         |
 | `readinessProbe.initialDelaySeconds`  | Delay before readiness probe is initiated                                                    | 30                                             |
 | `readinessProbe.periodSeconds`        | How often to perform the probe                                                               | 3                                              |
 | `readinessProbe.timeoutSeconds`       | When the probe times out                                                                     | 5                                              |
@@ -118,8 +125,8 @@ The following table lists the configurable parameters of the Moodle chart and th
 | `podAnnotations`                      | Pod annotations                                                                              | `{}`                                           |
 | `metrics.enabled`                     | Start a side-car prometheus exporter                                                         | `false`                                        |
 | `metrics.image.registry`              | Apache exporter image registry                                                               | `docker.io`                                    |
-| `metrics.image.repository`            | Apache exporter image name                                                                   | `lusotycoon/apache-exporter`                   |
-| `metrics.image.tag`                   | Apache exporter image tag                                                                    | `v0.5.0`                                       |
+| `metrics.image.repository`            | Apache exporter image name                                                                   | `bitnami/apache-exporter`                      |
+| `metrics.image.tag`                   | Apache exporter image tag                                                                    | `{TAG_NAME}`                                   |
 | `metrics.image.pullPolicy`            | Image pull policy                                                                            | `IfNotPresent`                                 |
 | `metrics.image.pullSecrets`           | Specify docker-registry secret names as an array                                             | `[]` (does not add image pull secrets to deployed pods) |
 | `metrics.podAnnotations`              | Additional annotations for Metrics exporter pod                                              | `{prometheus.io/scrape: "true", prometheus.io/port: "9117"}` |
@@ -145,31 +152,36 @@ $ helm install --name my-release -f values.yaml stable/moodle
 
 > **Tip**: You can use the default [values.yaml](values.yaml)
 
+## Configuration and installation details
+
+### [Rolling VS Immutable tags](https://docs.bitnami.com/containers/how-to/understand-rolling-tags-containers/)
+
+It is strongly recommended to use immutable tags in a production environment. This ensures your deployment does not change automatically if the same tag is updated with a different image.
+
+Bitnami will release a new chart updating its containers if a new version of the main container, significant changes, or critical vulnerabilities exist.
+
 ### Ingress without TLS
 
 For using ingress (example without TLS):
 
 ```console
-$ helm install --name my-release \
-  --set ingress.enabled=True,ingress.hosts[0]=moodle.domain.com,serviceType=ClusterIP,moodleUsername=admin,moodlePassword=password,mariadb.mariadbRootPassword=secretpassword stable/moodle
+ingress.enabled=True
+ingress.hosts[0]=moodle.domain.com
+serviceType=ClusterIP
+moodleUsername=admin
+moodlePassword=password
+mariadb.mariadbRootPassword=secretpassword
 ```
 
-These are the *3 mandatory parameters* when *Ingress* is desired:
-`ingress.enabled=True,ingress.hosts[0]=moodle.domain.com,serviceType=ClusterIP`
+These are the *3 mandatory parameters* when *Ingress* is desired: `ingress.enabled=True`, `ingress.hosts[0]=moodle.domain.com` and `serviceType=ClusterIP`
 
 ### Ingress TLS
 
 If your cluster allows automatic creation/retrieval of TLS certificates (e.g. [kube-lego](https://github.com/jetstack/kube-lego)), please refer to the documentation for that mechanism.
 
-To manually configure TLS, first create/retrieve a key & certificate pair for the address(es) you wish to protect. Then create a TLS secret in the namespace:
+To manually configure TLS, first create/retrieve a key & certificate pair for the address(es) you wish to protect. Then create a TLS secret (named `moodle-server-tls` in this example) in the namespace. Include the secret's name, along with the desired hostnames, in the Ingress TLS section of your custom `values.yaml` file:
 
-```console
-$ kubectl create secret tls moodle-server-tls --cert=path/to/tls.cert --key=path/to/tls.key
-```
-
-Include the secret's name, along with the desired hostnames, in the Ingress TLS section of your custom `values.yaml` file:
-
-```console
+```yaml
 ingress:
   ## If true, Moodle server Ingress will be created
   ##
@@ -201,7 +213,7 @@ ingress:
 The [Bitnami Moodle](https://github.com/bitnami/bitnami-docker-moodle) image stores the Moodle data and configurations at the `/bitnami/moodle` and `/bitnami/apache` paths of the container.
 
 Persistent Volume Claims are used to keep the data across deployments. This is known to work in GCE, AWS, vpshere, and minikube.
-See the [Configuration](#configuration) section to configure the PVC or to disable persistence.
+See the [Parameters](#parameters) section to configure the PVC or to disable persistence.
 You may want to review the [PV reclaim policy](https://kubernetes.io/docs/tasks/administer-cluster/change-pv-reclaim-policy/) and update as required. By default, it's set to delete, and when Moodle is uninstalled, data is also removed.
 
 ## Upgrading

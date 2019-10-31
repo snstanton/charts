@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-cat values.yaml | sed 's/cleanupCustomResource: false/cleanupCustomResource: true/' > ci/test-values.yaml
+sed \
+	-e 's/createCustomResource: true/createCustomResource: false/' \
+	-e 's/port: 9100/port: 9101/' \
+	-e 's/targetPort: 9100/targetPort: 9101/' \
+  values.yaml > ci/02-test-without-crds-values.yaml

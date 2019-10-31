@@ -18,8 +18,10 @@ Bitnami charts can be used with [Kubeapps](https://kubeapps.com/) for deployment
 
 ## Prerequisites
 
-- Kubernetes 1.4+ with Beta APIs enabled
+- Kubernetes 1.12+
+- Helm 2.11+ or Helm 3.0-beta3+
 - PV provisioner support in the underlying infrastructure
+- ReadWriteMany volumes for deployment scaling
 
 ## Installing the Chart
 
@@ -29,7 +31,7 @@ To install the chart with the release name `my-release`:
 $ helm install --name my-release stable/drupal
 ```
 
-The command deploys Drupal on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+The command deploys Drupal on the Kubernetes cluster in the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
 
 > **Tip**: List all releases using `helm list`
 
@@ -43,7 +45,7 @@ $ helm delete my-release
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-## Configuration
+## Parameters
 
 The following table lists the configurable parameters of the Drupal chart and their default values.
 
@@ -51,11 +53,14 @@ The following table lists the configurable parameters of the Drupal chart and th
 | --------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
 | `global.imageRegistry`            | Global Docker image registry               | `nil`                                                     |
 | `global.imagePullSecrets`         | Global Docker registry secret names as an array | `[]` (does not add image pull secrets to deployed pods) |
+| `global.storageClass`                     | Global storage class for dynamic provisioning                                               | `nil`                                                        |
 | `image.registry`                  | Drupal image registry                      | `docker.io`                                               |
 | `image.repository`                | Drupal Image name                          | `bitnami/drupal`                                          |
-| `image.tag`                       | Drupal Image tag                           | `{VERSION}`                                               |
-| `image.pullPolicy`                | Drupal image pull policy                   | `Always` if `imageTag` is `latest`, else `IfNotPresent`   |
+| `image.tag`                       | Drupal Image tag                           | `{TAG_NAME}`                                              |
+| `image.pullPolicy`                | Drupal image pull policy                   | `IfNotPresent`                                            |
 | `image.pullSecrets`               | Specify docker-registry secret names as an array | `[]` (does not add image pull secrets to deployed pods)  |
+| `nameOverride`                    | String to partially override drupal.fullname template with a string (will prepend the release name) | `nil` |
+| `fullnameOverride`                | String to fully override drupal.fullname template with a string                                     | `nil` |
 | `drupalProfile`                   | Drupal installation profile                | `standard`                                                |
 | `drupalUsername`                  | User of the application                    | `user`                                                    |
 | `drupalPassword`                  | Application password                       | _random 10 character long alphanumeric string_            |
@@ -88,9 +93,6 @@ The following table lists the configurable parameters of the Drupal chart and th
 | `service.nodePorts.http`          | Kubernetes http node port                  | `""`                                                      |
 | `service.nodePorts.https`         | Kubernetes https node port                 | `""`                                                      |
 | `persistence.enabled`             | Enable persistence using PVC               | `true`                                                    |
-| `persistence.apache.storageClass` | PVC Storage Class for Apache volume        | `nil` (uses alpha storage class annotation)               |
-| `persistence.apache.accessMode`   | PVC Access Mode for Apache volume          | `ReadWriteOnce`                                           |
-| `persistence.apache.size`         | PVC Storage Request for Apache volume      | `1Gi`                                                     |
 | `persistence.drupal.storageClass` | PVC Storage Class for Drupal volume        | `nil` (uses alpha storage class annotation)               |
 | `persistence.drupal.accessMode`   | PVC Access Mode for Drupal volume          | `ReadWriteOnce`                                           |
 | `persistence.drupal.existingClaim`| An Existing PVC name                       | `nil`                                                     |
@@ -98,12 +100,12 @@ The following table lists the configurable parameters of the Drupal chart and th
 | `persistence.drupal.size`         | PVC Storage Request for Drupal volume      | `8Gi`                                                     |
 | `resources`                       | CPU/Memory resource requests/limits        | Memory: `512Mi`, CPU: `300m`                              |
 | `volumeMounts.drupal.mountPath`   | Drupal data volume mount path              | `/bitnami/drupal`                                         |
-| `volumeMounts.apache.mountPath`   | Apache data volume mount path              | `/bitnami/apache`                                         |
 | `podAnnotations`                  | Pod annotations                            | `{}`                                                      |
+| `affinity`                        | Map of node/pod affinities                 | `{}`                                                      |
 | `metrics.enabled`                 | Start a side-car prometheus exporter       | `false`                                                   |
 | `metrics.image.registry`          | Apache exporter image registry             | `docker.io`                                               |
-| `metrics.image.repository`        | Apache exporter image name                 | `lusotycoon/apache-exporter`                              |
-| `metrics.image.tag`               | Apache exporter image tag                  | `v0.5.0`                                                  |
+| `metrics.image.repository`        | Apache exporter image name                 | `bitnami/apache-exporter`                                 |
+| `metrics.image.tag`               | Apache exporter image tag                  | `{TAG_NAME}`                                              |
 | `metrics.image.pullPolicy`        | Image pull policy                          | `IfNotPresent`                                            |
 | `metrics.image.pullSecrets`       | Specify docker-registry secret names as an array | `[]` (does not add image pull secrets to deployed pods)      |
 | `metrics.podAnnotations`          | Additional annotations for Metrics exporter pod  | `{prometheus.io/scrape: "true", prometheus.io/port: "9117"}` |
@@ -129,11 +131,19 @@ $ helm install --name my-release -f values.yaml stable/drupal
 
 > **Tip**: You can use the default [values.yaml](values.yaml)
 
-## Image
+## Configuration and installation details
+
+### [Rolling VS Immutable tags](https://docs.bitnami.com/containers/how-to/understand-rolling-tags-containers/)
+
+It is strongly recommended to use immutable tags in a production environment. This ensures your deployment does not change automatically if the same tag is updated with a different image.
+
+Bitnami will release a new chart updating its containers if a new version of the main container, significant changes, or critical vulnerabilities exist.
+
+### Image
 
 The `image` parameter allows specifying which image will be pulled for the chart.
 
-### Private registry
+#### Private registry
 
 If you configure the `image` value to one in a private registry, you will need to [specify an image pull secret](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod).
 
@@ -147,18 +157,12 @@ imagePullSecrets:
 
 1. Install the chart
 
-```console
-helm install --name my-release -f values.yaml stable/drupal
-```
-
 ## Persistence
 
-The configured image must store Drupal data and Apache configurations in separate paths of the container.
-
-The [Bitnami Drupal](https://github.com/bitnami/bitnami-docker-drupal) image stores the Drupal data and Apache configurations at the `/bitnami/drupal` and `/bitnami/apache` paths of the container. If you wish to override the `image` value, and your image stores this data and configurations in different paths, you may specify these paths with `volumeMounts.drupal.mountPath` and `volumeMounts.apache.mountPath`.
+The [Bitnami Drupal](https://github.com/bitnami/bitnami-docker-drupal) image stores the Drupal data at the `/bitnami/drupal` path of the container. If you wish to override the `image` value, and your image stores this data in different path, you may specify these paths with `volumeMounts.drupal.mountPath`.
 
 Persistent Volume Claims are used to keep the data across deployments. This is known to work in GCE, AWS, and minikube.
-See the [Configuration](#configuration) section to configure the PVC or to disable persistence.
+See the [Parameters](#parameters) section to configure the PVC or to disable persistence.
 
 ### Existing PersistentVolumeClaim
 
